@@ -18,16 +18,30 @@ import "phoenix_html"
 // Local files can be imported directly using relative
 // paths "./socket" or full ones "web/static/js/socket".
 
-// import socket from "./socket"
+import socket from "./socket"
+
+let channel = socket.channel("room:drawing", {})
+channel.join()
+  .receive("ok", resp => { console.log("Joined successfully", resp) })
+  .receive("error", resp => { console.log("Unable to join", resp) })
 
 var canvas = document.getElementById("draw-canvas");
 var ctx = canvas.getContext("2d");
 
 function drawLine(from, to) {
+  // Send a message to draw a line (we'll draw when we receive it)
+  channel.push("drawLine", {line: [from, to]})
+}
+
+// Draw whatever we receive
+channel.on("drawLine", payload => {
+  var from = payload.line[0];
+  var to = payload.line[1];
   ctx.moveTo(from.x, from.y);
   ctx.lineTo(to.x, to.y);
   ctx.stroke();
-}
+})
+
 
 // ------------------------
 //  General Input Tracking
