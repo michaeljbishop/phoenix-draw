@@ -28,18 +28,32 @@ channel.join()
 var canvas = document.getElementById("draw-canvas");
 var ctx = canvas.getContext("2d");
 
+var timerIsSet = false;
+
+var lines = [];
+
 function drawLine(from, to) {
-  // Send a message to draw a line (we'll draw when we receive it)
-  channel.push("drawLine", {line: [from, to]})
+  lines.push({from: from, to: to});
+  if (timerIsSet) return;
+  window.setTimeout(function() {
+    timerIsSet = false;
+    // Send a message to draw a line (we'll draw when we receive it)
+    channel.push("drawLines", {lines: lines})
+    lines = [];
+  }, 40);
+  timerIsSet = true;
 }
 
 // Draw whatever we receive
-channel.on("drawLine", payload => {
-  var from = payload.line[0];
-  var to = payload.line[1];
-  ctx.moveTo(from.x, from.y);
-  ctx.lineTo(to.x, to.y);
-  ctx.stroke();
+channel.on("drawLines", payload => {
+  var _lines = payload.lines;
+  for (var i = 0; i < _lines.length; i++) {
+    var line = _lines[i];
+    
+    ctx.moveTo(line.from.x, line.from.y);
+    ctx.lineTo(line.to.x, line.to.y);
+    ctx.stroke();
+  }
 })
 
 

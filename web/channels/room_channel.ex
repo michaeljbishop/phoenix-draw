@@ -8,8 +8,8 @@ defmodule Draw.RoomChannel do
     {:error, %{reason: "unauthorized"}}
   end
   
-  def handle_in("drawLine", %{"line" => line} = params, socket) do
-    broadcast! socket, "drawLine", %{line: line}
+  def handle_in("drawLines", %{"lines" => lines}, socket) do
+    broadcast! socket, "drawLines", %{lines: lines}
     {:noreply, socket}
   end
 end
