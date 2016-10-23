@@ -14,7 +14,7 @@ defmodule Draw.UserSocket do
   # events to the server, we use this to ensure a page
   # doesn't receive drawLine events for itself (drawing
   # twice)
-  def canvas_id(), do: System.os_time
+  def canvas_id(), do: :os.system_time
 
   # Socket params are passed from the client and can
   # be used to verify and authenticate a user. After
