@@ -18,11 +18,8 @@ defmodule Draw.RoomChannel do
   def handle_out("drawLines", %{canvas_id: canvas_id, lines: lines}, socket) do
     # Pages draw locally to their own canvas before sending out draw events so
     # we don't rebroadcast them the event they sent the server.
-    if canvas_id === socket.assigns.canvas_id do
-      {:noreply, socket}
-    else
-      push socket, "drawLines", %{lines: lines}
-      {:noreply, socket}
-    end
+    unless canvas_id === socket.assigns.canvas_id,
+      do: push socket, "drawLines", %{lines: lines}
+    {:noreply, socket}
   end
 end
