@@ -28,21 +28,27 @@ channel.join()
 var canvas = document.getElementById("draw-canvas");
 var ctx = canvas.getContext("2d");
 
-function drawLines(lines) {
-  // Send a message to draw a line (we'll draw when we receive it)
-  channel.push("drawLines", {lines: lines});
-}
-
-// Draw whatever we receive
-channel.on("drawLines", payload => {
-  var _lines = payload.lines;
-  for (var i = 0; i < _lines.length; i++) {
-    var line = _lines[i];
+function _drawLines(lines) {
+  for (var i = 0; i < lines.length; i++) {
+    var line = lines[i];
     
     ctx.moveTo(line.from.x, line.from.y);
     ctx.lineTo(line.to.x, line.to.y);
     ctx.stroke();
   }
+}
+
+function drawLines(lines) {
+  _drawLines(lines);
+
+  // If we send our canvasID, the server won't waste bandwidth sending
+  // us our own drawLines messages.
+  channel.push("drawLines", {lines: lines, canvas_id: window.canvasID});
+}
+
+// Draw whatever we receive
+channel.on("drawLines", payload => {
+  _drawLines(payload.lines)
 })
 
 // ------------------------

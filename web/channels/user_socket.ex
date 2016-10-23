@@ -9,6 +9,13 @@ defmodule Draw.UserSocket do
     timeout: 45_000
   # transport :longpoll, Phoenix.Transports.LongPoll
 
+  # Used to identify a canvas when a page is loaded.
+  # Since a page draws locally to its own canvas AND sends
+  # events to the server, we use this to ensure a page
+  # doesn't receive drawLine events for itself (drawing
+  # twice)
+  def canvas_id(), do: System.os_time
+
   # Socket params are passed from the client and can
   # be used to verify and authenticate a user. After
   # verification, you can put default assigns into
@@ -20,8 +27,8 @@ defmodule Draw.UserSocket do
   #
   # See `Phoenix.Token` documentation for examples in
   # performing token verification on connect.
-  def connect(_params, socket) do
-    {:ok, socket}
+  def connect(%{"canvas_id" => canvas_id}, socket) do
+    {:ok, assign(socket, :canvas_id, String.to_integer(canvas_id))}
   end
 
   # Socket id's are topics that allow you to identify all sockets for a given user:
