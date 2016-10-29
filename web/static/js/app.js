@@ -28,74 +28,131 @@ channel.join()
 var canvas = document.getElementById("draw-canvas");
 var ctx = canvas.getContext("2d");
 
-function _drawLines(lines) {
-  for (var i = 0; i < lines.length; i++) {
-    var line = lines[i];
-    
-    ctx.moveTo(line.from.x, line.from.y);
-    ctx.lineTo(line.to.x, line.to.y);
-    ctx.stroke();
-  }
-}
-
-function drawLines(lines) {
-  _drawLines(lines);
-
-  // If we send our canvasID, the server won't waste bandwidth sending
-  // us our own drawLines messages.
-  channel.push("drawLines", {lines: lines, canvas_id: window.canvasID});
-}
-
-// Draw whatever we receive
-channel.on("drawLines", payload => {
-  _drawLines(payload.lines)
-})
-
 // ------------------------
 //  General Input Tracking
 // ------------------------
 
-var lastPoints = {};
+var lines = [];
+var linesInProgress = {};
 
-function moveToCoordinates(map) {
-  for (var identifier in map) {
-    if (map.hasOwnProperty(identifier)) {
-      var point = map[identifier];
-      lastPoints[identifier] = point;
-    }
-  }  
+function reduce(_enum, start, transform) {
+  var acc = start;
+  each(_enum, function(value, index){
+    acc = transform(acc, value, index);
+  });
+  return acc;
+};
+
+function map(enumerator, f) {
+  var result = [];
+  each(enumerator, function(value, index) {
+    result.push(f(value, index));
+  });
+  return result;
 }
 
-function lineToCoordinates(map) {
-  var lines = [];
-  for (var identifier in map) {
-    if (!map.hasOwnProperty(identifier))
-      continue;
-
-    var point = map[identifier];
-    if (lastPoints[identifier]) {
-      lines.push({from:lastPoints[identifier], to: point});
-    }
-    lastPoints[identifier] = point;
+function each(enumerator, f) {
+  if (Array.isArray(enumerator)) {
+    for (var i = 0; i < enumerator.length ; i++) {
+      f(enumerator[i], i);
+    };
   }
-  drawLines(lines);
+  else {
+    for (var key in enumerator) {
+      if (!enumerator.hasOwnProperty(key))
+        continue;
+      f(enumerator[key], key);
+    }
+  }
 }
+
+function drawLine(line) {
+  each(line, function(point, index) {
+    if (index === 0)
+      ctx.moveTo(point.x, point.y);
+    else
+      ctx.lineTo(point.x, point.y);
+  });
+}
+
+var drawingQueued = false;
+function draw() {
+  if (drawingQueued) return;
+  drawingQueued = true;
+  window.requestAnimationFrame(function(){
+    drawingQueued = false;
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    ctx.beginPath();
+    each(lines, drawLine);
+    each(linesInProgress, drawLine);
+    ctx.stroke();
+  });
+};
+
+function lineStart(points) {
+  channel.push("lineStart", {points: points, canvas_id: window.canvasID});
+  _lineStart(points);
+}
+
+channel.on("lineStart", payload => {
+  _lineStart(payload.points)
+})
+
+function _lineStart(points) {
+  each(points, (point, identifier) => {
+    linesInProgress[identifier] = [point];
+  });
+  draw();
+}
+
+function lineTo(points) {
+  channel.push("lineTo", {points: points, canvas_id: window.canvasID});
+  _lineTo(points);
+}
+
+channel.on("lineTo", payload => {
+  _lineTo(payload.points)
+})
+
+function _lineTo(points) {
+  each(points, (point, identifier) => {
+    linesInProgress[identifier].push(point);
+  });
+  draw();
+}
+
+function lineEnd(points) {
+  var identifiers = map(points, (_, identifier) => identifier);
+  channel.push("lineEnd", {identifiers: identifiers, canvas_id: window.canvasID});
+  _lineEnd(identifiers);
+}
+
+channel.on("lineEnd", payload => {
+  _lineEnd(payload.identifiers)
+})
+
+function _lineEnd(identifiers) {
+  each(identifiers, function(identifier) {
+    var line = linesInProgress[identifier];
+    lines.push(line);
+    delete linesInProgress[identifier];
+  });
+  draw();
+}
+
+function lineID(identifier) {
+  return `${window.canvasID}:${identifier}`
+};
 
 function getCanvasCoordinates(map) {
   var rect = canvas.getBoundingClientRect();
-  var returnValue = {};
-
-  for (var identifier in map) {
-    if (!map.hasOwnProperty(identifier))
-      continue;
-
-    var client = map[identifier];
-    returnValue[identifier] = {
+  return reduce(map, {}, function(acc, client, identifier){
+    acc[lineID(identifier)] = {
       x: client.clientX - rect.left,
       y: client.clientY - rect.top
     };
-  }  
-  return returnValue;
+    return acc;
+  });
 }
 
 function haltEventBefore(handler) {
@@ -114,45 +171,60 @@ var mouseDown = false;
 
 canvas.addEventListener('mousedown', haltEventBefore(function(event) {
   mouseDown = true;
-  moveToCoordinates(getCanvasCoordinates({"mouse" : event}));
+  var point = getCanvasCoordinates({"mouse" : event});
+  lineStart(point);
 }));
 
 // We need to be able to listen for mouse ups for the entire document
 document.documentElement.addEventListener('mouseup', function(event) {
   mouseDown = false;
+  lineEnd(getCanvasCoordinates({"mouse" : event}));
 });
 
 canvas.addEventListener('mousemove', haltEventBefore(function(event) {
   if (!mouseDown) return;
-  lineToCoordinates(getCanvasCoordinates({"mouse" : event}));
+  var point = getCanvasCoordinates({"mouse" : event});
+  lineTo(point);
 }));
 
 canvas.addEventListener('mouseleave', haltEventBefore(function(event) {
   if (!mouseDown) return;
-  lineToCoordinates(getCanvasCoordinates({"mouse" : event}));
+  var point = getCanvasCoordinates({"mouse" : event});
+  lineTo(point);
+  lineEnd(point);
 }));
 
 canvas.addEventListener('mouseenter', haltEventBefore(function(event) {
   if (!mouseDown) return;
-  moveToCoordinates(getCanvasCoordinates({"mouse" : event}));
+  var point = getCanvasCoordinates({"mouse" : event});
+  lineStart(point);
 }));
 
 // ----------------
 //  Touch Handling
 // ----------------
 
+function touchesFromTouchList(touchList) {
+  var touches = [];
+  for (var i = 0; i < touchList.length; i++) {
+    var touch = touchList.item(i);
+    touches.push(touch);
+  }
+  return touches;
+}
+
 function handleTouchesWith(func) {
   return haltEventBefore(function(event) {
-    var map = {};
-    for (var i = 0; i < event.changedTouches.length; i++) {
-      var touch = event.changedTouches[i];
-      map[touch.identifier] = touch;
-    }
-    func(getCanvasCoordinates(map));
+    var result = reduce(touchesFromTouchList(event.changedTouches), {}, function(acc, touch){
+      acc[touch.identifier] = touch;
+      return acc;
+    });
+
+    func(getCanvasCoordinates(result));
   });
 };
 
-canvas.addEventListener('touchstart',  handleTouchesWith(moveToCoordinates));
-canvas.addEventListener('touchmove',   handleTouchesWith(lineToCoordinates));
-canvas.addEventListener('touchend',    handleTouchesWith(lineToCoordinates));
-canvas.addEventListener('touchcancel', handleTouchesWith(moveToCoordinates));
+canvas.addEventListener('touchstart',  handleTouchesWith(lineStart));
+canvas.addEventListener('touchmove',   handleTouchesWith(lineTo));
+canvas.addEventListener('touchend',    handleTouchesWith(lineEnd));
+canvas.addEventListener('touchcancel', handleTouchesWith(lineEnd));

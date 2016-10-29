@@ -1,8 +1,6 @@
 defmodule Draw.RoomChannel do
   use Phoenix.Channel
 
-  intercept ["drawLines"]
-
   def join("room:drawing", _message, socket) do
     {:ok, socket}
   end
@@ -10,16 +8,27 @@ defmodule Draw.RoomChannel do
     {:error, %{reason: "unauthorized"}}
   end
   
-  def handle_in("drawLines", %{"canvas_id" => canvas_id, "lines" => lines}, socket) do
-    broadcast! socket, "drawLines", %{canvas_id: canvas_id, lines: lines}
+  def handle_in("lineStart", %{"canvas_id" => canvas_id, "points" => points}, socket) do
+    broadcast! socket, "lineStart", %{canvas_id: canvas_id, points: points}
+    {:noreply, socket}
+  end
+  def handle_in("lineTo", %{"canvas_id" => canvas_id, "points" => points}, socket) do
+    broadcast! socket, "lineTo", %{canvas_id: canvas_id, points: points}
+    {:noreply, socket}
+  end
+  def handle_in("lineEnd", %{"canvas_id" => canvas_id, "identifiers" => identifiers}, socket) do
+    broadcast! socket, "lineEnd", %{canvas_id: canvas_id, identifiers: identifiers}
     {:noreply, socket}
   end
 
-  def handle_out("drawLines", %{canvas_id: canvas_id, lines: lines}, socket) do
-    # Pages draw locally to their own canvas before sending out draw events so
-    # we don't rebroadcast them the event they sent the server.
+  # Pages draw locally to their own canvas before sending out draw events so
+  # we don't rebroadcast them the event they sent the server.
+
+  intercept ["lineStart", "lineTo", "lineEnd"]
+
+  def handle_out(msg_name, %{canvas_id: canvas_id} = payload, socket) do
     unless canvas_id === socket.assigns.canvas_id,
-      do: push socket, "drawLines", %{lines: lines}
+      do: push socket, msg_name, Map.delete(payload, :canvas_id)
     {:noreply, socket}
   end
 end
