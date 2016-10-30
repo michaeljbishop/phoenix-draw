@@ -20,6 +20,11 @@ defmodule Draw.ChannelCase do
       # Import conveniences for testing with channels
       use Phoenix.ChannelTest
 
+      alias Draw.Repo
+      import Ecto
+      import Ecto.Changeset
+      import Ecto.Query
+
 
       # The default endpoint for testing
       @endpoint Draw.Endpoint
@@ -27,6 +32,11 @@ defmodule Draw.ChannelCase do
   end
 
   setup tags do
+    :ok = Ecto.Adapters.SQL.Sandbox.checkout(Draw.Repo)
+
+    unless tags[:async] do
+      Ecto.Adapters.SQL.Sandbox.mode(Draw.Repo, {:shared, self()})
+    end
 
     :ok
   end

@@ -18,13 +18,21 @@ defmodule Draw.Web do
 
   def model do
     quote do
-      # Define common model functionality
+      use Ecto.Schema
+
+      import Ecto
+      import Ecto.Changeset
+      import Ecto.Query
     end
   end
 
   def controller do
     quote do
       use Phoenix.Controller
+
+      alias Draw.Repo
+      import Ecto
+      import Ecto.Query
 
       import Draw.Router.Helpers
       import Draw.Gettext
@@ -56,6 +64,10 @@ defmodule Draw.Web do
   def channel do
     quote do
       use Phoenix.Channel
+
+      alias Draw.Repo
+      import Ecto
+      import Ecto.Query
       import Draw.Gettext
     end
   end

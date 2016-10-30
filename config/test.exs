@@ -8,3 +8,12 @@ config :draw, Draw.Endpoint,
 
 # Print only warnings and errors during test
 config :logger, level: :warn
+
+# Configure your database
+config :draw, Draw.Repo,
+  adapter: Ecto.Adapters.Postgres,
+  username: "postgres",
+  password: "postgres",
+  database: "draw_test",
+  hostname: "localhost",
+  pool: Ecto.Adapters.SQL.Sandbox

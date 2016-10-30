@@ -36,7 +36,7 @@ defmodule Draw.Endpoint do
   plug Plug.Session,
     store: :cookie,
     key: "_draw_key",
-    signing_salt: "k7qJVmu3"
+    signing_salt: "7IQYbUke"
 
   plug Draw.Router
 end

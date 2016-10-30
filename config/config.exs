@@ -5,10 +5,14 @@
 # is restricted to this project.
 use Mix.Config
 
+# General application configuration
+config :draw,
+  ecto_repos: [Draw.Repo]
+
 # Configures the endpoint
 config :draw, Draw.Endpoint,
   url: [host: "localhost"],
-  secret_key_base: "/VXFdiexhG8HlCnXtuZhliQzp6vd3yXBxYOTjbn8QzmupvUt4suUXdnzPbMg7Tu9",
+  secret_key_base: "ocpxS25G92O5ZUjQzklqR2jkPaEdRVkleqnYZT0cBYfhxxTUjeTygmFI2X5ys6IM",
   render_errors: [view: Draw.ErrorView, accepts: ~w(html json)],
   pubsub: [name: Draw.PubSub,
            adapter: Phoenix.PubSub.PG2]
