@@ -1,4 +1,4 @@
-<% # We seed the canvas id to be sent back in drawing messages %>
-<script>window.canvasID = <%= Draw.UserSocket.canvas_id %></script>
-<canvas id="draw-canvas" class="bordered" width="600" height="600">
-</canvas>
+
+<p>Welcome to Draw. You can draw collaboratively with friends in real-time on a shared canvas.<p>
+
+<p><%= link "Make a canvas", to: canvas_path(@conn, :new )%></p>

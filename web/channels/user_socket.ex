@@ -2,7 +2,7 @@ defmodule Draw.UserSocket do
   use Phoenix.Socket
 
   ## Channels
-  channel "room:*", Draw.RoomChannel
+  channel "canvas:*", Draw.CanvasChannel
 
   ## Transports
   transport :websocket, Phoenix.Transports.WebSocket,
@@ -14,7 +14,7 @@ defmodule Draw.UserSocket do
   # events to the server, we use this to ensure a page
   # doesn't receive drawLine events for itself (drawing
   # twice)
-  def canvas_id(), do: :os.system_time
+  def page_id(), do: :os.system_time
 
   # Socket params are passed from the client and can
   # be used to verify and authenticate a user. After
@@ -27,8 +27,8 @@ defmodule Draw.UserSocket do
   #
   # See `Phoenix.Token` documentation for examples in
   # performing token verification on connect.
-  def connect(%{"canvas_id" => canvas_id}, socket) do
-    {:ok, assign(socket, :canvas_id, String.to_integer(canvas_id))}
+  def connect(%{"page_id" => page_id}, socket) do
+    {:ok, assign(socket, :page_id, String.to_integer(page_id))}
   end
 
   # Socket id's are topics that allow you to identify all sockets for a given user:

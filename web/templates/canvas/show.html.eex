@@ -1,0 +1,4 @@
+<p><%= link "Back", to: canvas_path(@conn, :index) %> | <%= link "Open Shared Window", to: canvas_path(@conn, :show, @canvas.id), target: "_blank" %></p>
+<h2><%= @canvas.title %></h2>
+<canvas id="draw-canvas" data-id="<%= @canvas.id %>" class="bordered" width="600" height="600">
+</canvas>

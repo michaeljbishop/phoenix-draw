@@ -1,0 +1,6 @@
+<h2>New canvas</h2>
+
+<%= render "form.html", changeset: @changeset,
+                        action: canvas_path(@conn, :create) %>
+
+<%= link "Back", to: canvas_path(@conn, :index) %>

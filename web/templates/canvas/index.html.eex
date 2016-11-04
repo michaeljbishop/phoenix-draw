@@ -1,0 +1,26 @@
+<h2>Listing canvases</h2>
+
+<table class="table">
+  <thead>
+    <tr>
+      <th>Title</th>
+
+      <th></th>
+    </tr>
+  </thead>
+  <tbody>
+<%= for canvas <- @canvases do %>
+    <tr>
+      <td><%= canvas.title %></td>
+
+      <td class="text-right">
+        <%= link "Show", to: canvas_path(@conn, :show, canvas), class: "btn btn-default btn-xs" %>
+        <%= link "Edit", to: canvas_path(@conn, :edit, canvas), class: "btn btn-default btn-xs" %>
+        <%= link "Delete", to: canvas_path(@conn, :delete, canvas), method: :delete, data: [confirm: "Are you sure?"], class: "btn btn-danger btn-xs" %>
+      </td>
+    </tr>
+<% end %>
+  </tbody>
+</table>
+
+<%= link "New canvas", to: canvas_path(@conn, :new) %>

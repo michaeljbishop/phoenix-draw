@@ -25,6 +25,8 @@
       </main>
 
     </div> <!-- /container -->
+    <% # We seed the canvas id to be sent back in drawing messages %>
+    <script>window.pageID = <%= Draw.UserSocket.page_id %></script>
     <script src="<%= static_path(@conn, "/js/app.js") %>"></script>
   </body>
 </html>
