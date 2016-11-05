@@ -32,12 +32,21 @@ let Canvas = {
 
     var ctx = canvas.getContext("2d");
 
+    function temporaryLineID() {
+      return Math.random();
+    };
+
     // ------------------------
     //  General Input Tracking
     // ------------------------
 
-    var lines = [];
-    var linesInProgress = {};
+    // This allows random and sequential access
+    var strokeIDToStrokeIndex = {};
+    var strokes = [];
+    
+    // This allows us to map a touch identifier to a specific line as
+    // the touch is being moved over the surface of the canvas
+    var touchIdentifierToLineID = {};
 
     function reduce(_enum, start, transform) {
       var acc = start;
@@ -70,8 +79,8 @@ let Canvas = {
       }
     }
 
-    function drawLine(line) {
-      each(line, function(point, index) {
+    function drawStroke(stroke) {
+      each(stroke, function(point, index) {
         if (index === 0)
           ctx.moveTo(point.x, point.y);
         else
@@ -87,8 +96,7 @@ let Canvas = {
         drawingQueued = false;
         ctx.clearRect(0, 0, canvas.width, canvas.height);
         ctx.beginPath();
-        each(lines, drawLine);
-        each(linesInProgress, drawLine);
+        each(strokes, drawStroke);
         ctx.stroke();
       });
     };
@@ -104,7 +112,11 @@ let Canvas = {
 
     function _lineStart(points) {
       each(points, (point, identifier) => {
-        linesInProgress[identifier] = [point];
+        var lineIdentifier = temporaryLineID();
+        var lineIndex = strokes.length;
+        touchIdentifierToLineID[identifier] = lineIdentifier
+        strokeIDToStrokeIndex[lineIdentifier] = lineIndex;
+        strokes[lineIndex] = [point]
       });
       draw();
     }
@@ -120,7 +132,7 @@ let Canvas = {
 
     function _lineTo(points) {
       each(points, (point, identifier) => {
-        linesInProgress[identifier].push(point);
+        strokes[strokeIDToStrokeIndex[touchIdentifierToLineID[identifier]]].push(point);
       });
       draw();
     }
@@ -137,9 +149,7 @@ let Canvas = {
 
     function _lineEnd(identifiers) {
       each(identifiers, function(identifier) {
-        var line = linesInProgress[identifier];
-        lines.push(line);
-        delete linesInProgress[identifier];
+        delete touchIdentifierToLineID[identifier];
       });
       draw();
     }
