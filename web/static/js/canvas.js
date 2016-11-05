@@ -24,17 +24,13 @@ let Canvas = {
   init(socket, canvas) {
     if (!canvas) return;
     
-    let videoId = canvas.getAttribute("data-id");
-    let channel = socket.channel(`canvas:${videoId}`, {})
+    let canvasID = canvas.getAttribute("data-id");
+    let channel = socket.channel(`canvas:${canvasID}`, {})
     channel.join()
       .receive("ok", resp => { console.log("Joined successfully", resp) })
       .receive("error", resp => { console.log("Unable to join", resp) })
 
     var ctx = canvas.getContext("2d");
-
-    function temporaryLineID() {
-      return Math.random();
-    };
 
     // ------------------------
     //  General Input Tracking
@@ -44,9 +40,27 @@ let Canvas = {
     var strokeIDToStrokeIndex = {};
     var strokes = [];
     
-    // This allows us to map a touch identifier to a specific line as
+    // This allows us to map a touch identifier to a specific stroke as
     // the touch is being moved over the surface of the canvas
-    var touchIdentifierToLineID = {};
+    var touchIdentifierToStrokeID = {};
+
+    function temporaryStrokeID() {
+      return Math.trunc(Math.random() * Number.MAX_SAFE_INTEGER);
+    };
+    
+    function registerStrokeID(touchidentifier) {
+      var strokeIdentifier = temporaryStrokeID();
+      touchIdentifierToStrokeID[touchidentifier] = strokeIdentifier;
+      return strokeIdentifier;
+    };
+    
+    function strokeIDForTouchIdentifier(touchidentifier) {
+      return touchIdentifierToStrokeID[touchidentifier];
+    }
+    
+    function unregisterStrokeID(touchidentifier) {
+        delete touchIdentifierToStrokeID[touchidentifier]
+    };
 
     function reduce(_enum, start, transform) {
       var acc = start;
@@ -101,67 +115,61 @@ let Canvas = {
       });
     };
 
-    function lineStart(points) {
-      channel.push("lineStart", {points: points});
-      _lineStart(points);
+    function strokeStart(points) {
+      channel.push("strokeStart", {points: points});
+      _strokeStart(points);
     }
 
-    channel.on("lineStart", payload => {
-      _lineStart(payload.points)
+    channel.on("strokeStart", payload => {
+      _strokeStart(payload.points)
     })
 
-    function _lineStart(points) {
-      each(points, (point, identifier) => {
-        var lineIdentifier = temporaryLineID();
-        var lineIndex = strokes.length;
-        touchIdentifierToLineID[identifier] = lineIdentifier
-        strokeIDToStrokeIndex[lineIdentifier] = lineIndex;
-        strokes[lineIndex] = [point]
+    function _strokeStart(points) {
+      each(points, (point, strokeIdentifier) => {
+        var strokeIndex = strokes.length;
+        strokeIDToStrokeIndex[strokeIdentifier] = strokeIndex;
+        strokes[strokeIndex] = [point]
       });
       draw();
     }
 
-    function lineTo(points) {
-      channel.push("lineTo", {points: points});
-      _lineTo(points);
+    function strokeTo(points) {
+      channel.push("strokeTo", {points: points});
+      _strokeTo(points);
     }
 
-    channel.on("lineTo", payload => {
-      _lineTo(payload.points)
+    channel.on("strokeTo", payload => {
+      _strokeTo(payload.points)
     })
 
-    function _lineTo(points) {
+    function _strokeTo(points) {
       each(points, (point, identifier) => {
-        strokes[strokeIDToStrokeIndex[touchIdentifierToLineID[identifier]]].push(point);
+        strokes[strokeIDToStrokeIndex[identifier]].push(point);
       });
       draw();
     }
 
-    function lineEnd(points) {
+    function strokeEnd(points) {
       var identifiers = map(points, (_, identifier) => identifier);
-      channel.push("lineEnd", {identifiers: identifiers});
-      _lineEnd(identifiers);
+      channel.push("strokeEnd", {identifiers: identifiers});
+      _strokeEnd(identifiers);
     }
 
-    channel.on("lineEnd", payload => {
-      _lineEnd(payload.identifiers)
+    channel.on("strokeEnd", payload => {
+      _strokeEnd(payload.identifiers)
     })
 
-    function _lineEnd(identifiers) {
+    function _strokeEnd(identifiers) {
       each(identifiers, function(identifier) {
-        delete touchIdentifierToLineID[identifier];
+        delete touchIdentifierToStrokeID[identifier];
       });
       draw();
     }
-
-    function lineID(identifier) {
-      return `${window.pageID}:${identifier}`
-    };
 
     function getCanvasCoordinates(map) {
       var rect = canvas.getBoundingClientRect();
       return reduce(map, {}, function(acc, client, identifier){
-        acc[lineID(identifier)] = {
+        acc[identifier] = {
           x: client.clientX - rect.left,
           y: client.clientY - rect.top
         };
@@ -185,33 +193,35 @@ let Canvas = {
 
     canvas.addEventListener('mousedown', haltEventBefore(function(event) {
       mouseDown = true;
-      var point = getCanvasCoordinates({"mouse" : event});
-      lineStart(point);
+      var point = getCanvasCoordinates({[registerStrokeID("mouse")]: event});
+      strokeStart(point);
     }));
 
     // We need to be able to listen for mouse ups for the entire document
     document.documentElement.addEventListener('mouseup', function(event) {
       mouseDown = false;
-      lineEnd(getCanvasCoordinates({"mouse" : event}));
+      strokeEnd(getCanvasCoordinates({[strokeIDForTouchIdentifier("mouse")]: event}));
+      unregisterStrokeID("mouse");
     });
 
     canvas.addEventListener('mousemove', haltEventBefore(function(event) {
       if (!mouseDown) return;
-      var point = getCanvasCoordinates({"mouse" : event});
-      lineTo(point);
+      var point = getCanvasCoordinates({[strokeIDForTouchIdentifier("mouse")]: event});
+      strokeTo(point);
     }));
 
     canvas.addEventListener('mouseleave', haltEventBefore(function(event) {
       if (!mouseDown) return;
-      var point = getCanvasCoordinates({"mouse" : event});
-      lineTo(point);
-      lineEnd(point);
+      var point = getCanvasCoordinates({[strokeIDForTouchIdentifier("mouse")]: event});
+      strokeTo(point);
+      strokeEnd(point);
+      unregisterStrokeID("mouse");
     }));
 
     canvas.addEventListener('mouseenter', haltEventBefore(function(event) {
       if (!mouseDown) return;
-      var point = getCanvasCoordinates({"mouse" : event});
-      lineStart(point);
+      var point = getCanvasCoordinates({[registerStrokeID("mouse")]: event});
+      strokeStart(point);
     }));
 
     // ----------------
@@ -230,18 +240,31 @@ let Canvas = {
     function handleTouchesWith(func) {
       return haltEventBefore(function(event) {
         var result = reduce(touchesFromTouchList(event.changedTouches), {}, function(acc, touch){
-          acc[touch.identifier] = touch;
+          var strokeID;
+          
+          if (func === strokeStart) {
+            strokeID = registerStrokeID(touch.identifier);
+          }
+          else {
+            strokeID = strokeIDForTouchIdentifier(touch.identifier);
+          }
+
+          acc[strokeID] = touch;
+
           return acc;
         });
 
         func(getCanvasCoordinates(result));
+        if (func === strokeEnd) {
+          each(touchesFromTouchList(event.changedTouches), (touch) => unregisterStrokeID(touch.id))
+        }
       });
     };
 
-    canvas.addEventListener('touchstart',  handleTouchesWith(lineStart));
-    canvas.addEventListener('touchmove',   handleTouchesWith(lineTo));
-    canvas.addEventListener('touchend',    handleTouchesWith(lineEnd));
-    canvas.addEventListener('touchcancel', handleTouchesWith(lineEnd));
+    canvas.addEventListener('touchstart',  handleTouchesWith(strokeStart));
+    canvas.addEventListener('touchmove',   handleTouchesWith(strokeTo));
+    canvas.addEventListener('touchend',    handleTouchesWith(strokeEnd));
+    canvas.addEventListener('touchcancel', handleTouchesWith(strokeEnd));
   }
 };
 export default Canvas;
