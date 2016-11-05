@@ -94,7 +94,7 @@ let Canvas = {
     };
 
     function lineStart(points) {
-      channel.push("lineStart", {points: points, page_id: window.pageID});
+      channel.push("lineStart", {points: points});
       _lineStart(points);
     }
 
@@ -110,7 +110,7 @@ let Canvas = {
     }
 
     function lineTo(points) {
-      channel.push("lineTo", {points: points, page_id: window.pageID});
+      channel.push("lineTo", {points: points});
       _lineTo(points);
     }
 
@@ -127,7 +127,7 @@ let Canvas = {
 
     function lineEnd(points) {
       var identifiers = map(points, (_, identifier) => identifier);
-      channel.push("lineEnd", {identifiers: identifiers, page_id: window.pageID});
+      channel.push("lineEnd", {identifiers: identifiers});
       _lineEnd(identifiers);
     }
 

@@ -5,16 +5,16 @@ defmodule Draw.CanvasChannel do
     {:ok, socket}
   end
   
-  def handle_in("lineStart", %{"page_id" => page_id, "points" => points}, socket) do
-    broadcast! socket, "lineStart", %{page_id: page_id, points: points}
+  def handle_in("lineStart", %{"points" => points}, socket) do
+    broadcast! socket, "lineStart", %{page_id: socket.assigns.page_id, points: points}
     {:noreply, socket}
   end
-  def handle_in("lineTo", %{"page_id" => page_id, "points" => points}, socket) do
-    broadcast! socket, "lineTo", %{page_id: page_id, points: points}
+  def handle_in("lineTo", %{"points" => points}, socket) do
+    broadcast! socket, "lineTo", %{page_id: socket.assigns.page_id, points: points}
     {:noreply, socket}
   end
-  def handle_in("lineEnd", %{"page_id" => page_id, "identifiers" => identifiers}, socket) do
-    broadcast! socket, "lineEnd", %{page_id: page_id, identifiers: identifiers}
+  def handle_in("lineEnd", %{"identifiers" => identifiers}, socket) do
+    broadcast! socket, "lineEnd", %{page_id: socket.assigns.page_id, identifiers: identifiers}
     {:noreply, socket}
   end
 
