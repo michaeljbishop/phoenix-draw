@@ -3,7 +3,11 @@ defmodule Draw.CanvasControllerTest do
 
   alias Draw.Canvas
   @valid_attrs %{title: "some content"}
-  @invalid_attrs %{}
+  @invalid_attrs %{title: 5} # wrong type
+
+  setup do
+    [valid_struct: Canvas.changeset(%Canvas{}, @valid_attrs)]
+  end
 
   test "lists all entries on index", %{conn: conn} do
     conn = get conn, canvas_path(conn, :index)
@@ -26,8 +30,8 @@ defmodule Draw.CanvasControllerTest do
     assert html_response(conn, 200) =~ "New canvas"
   end
 
-  test "shows chosen resource", %{conn: conn} do
-    canvas = Repo.insert! %Canvas{title: "sfsdf"}
+  test "shows chosen resource", %{conn: conn, valid_struct: valid_struct} do
+    canvas = Repo.insert! valid_struct
     conn = get conn, canvas_path(conn, :show, canvas)
     assert html_response(conn, 200) =~ canvas.title
   end
@@ -38,27 +42,27 @@ defmodule Draw.CanvasControllerTest do
     end
   end
 
-  test "renders form for editing chosen resource", %{conn: conn} do
-    canvas = Repo.insert! %Canvas{}
+  test "renders form for editing chosen resource", %{conn: conn, valid_struct: valid_struct} do
+    canvas = Repo.insert! valid_struct
     conn = get conn, canvas_path(conn, :edit, canvas)
     assert html_response(conn, 200) =~ "Edit canvas"
   end
 
-  test "updates chosen resource and redirects when data is valid", %{conn: conn} do
-    canvas = Repo.insert! %Canvas{}
+  test "updates chosen resource and redirects when data is valid", %{conn: conn, valid_struct: valid_struct} do
+    canvas = Repo.insert! valid_struct
     conn = put conn, canvas_path(conn, :update, canvas), canvas: @valid_attrs
     assert redirected_to(conn) == canvas_path(conn, :show, canvas)
     assert Repo.get_by(Canvas, @valid_attrs)
   end
 
-  test "does not update chosen resource and renders errors when data is invalid", %{conn: conn} do
-    canvas = Repo.insert! %Canvas{}
+  test "does not update chosen resource and renders errors when data is invalid", %{conn: conn, valid_struct: valid_struct} do
+    canvas = Repo.insert! valid_struct
     conn = put conn, canvas_path(conn, :update, canvas), canvas: @invalid_attrs
     assert html_response(conn, 200) =~ "Edit canvas"
   end
 
-  test "deletes chosen resource", %{conn: conn} do
-    canvas = Repo.insert! %Canvas{}
+  test "deletes chosen resource", %{conn: conn, valid_struct: valid_struct} do
+    canvas = Repo.insert! valid_struct
     conn = delete conn, canvas_path(conn, :delete, canvas)
     assert redirected_to(conn) == canvas_path(conn, :index)
     refute Repo.get(Canvas, canvas.id)
